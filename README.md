@@ -1,9 +1,9 @@
 
 # Java 21 TDD Project Template
 
-[![Build Status](https://github.com/{username}/{repo}/actions/workflows/ci.yml/badge.svg)](https://github.com/{username}/{repo}/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/{username}/{repo}/branch/main/graph/badge.svg)](https://codecov.io/gh/{username}/{repo})
-[![Mutation Coverage](https://img.shields.io/badge/mutation%20coverage-100%25-brightgreen)](build/reports/pitest/index.html)
+[![Build Status](https://github.com/NiallArthurs/java21-tdd-starter/actions/workflows/ci.yml/badge.svg)](https://github.com/NiallArthurs/java21-tdd-starter/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/NiallArthurs/java21-tdd-starter/branch/master/graph/badge.svg)](https://codecov.io/gh/NiallArthurs/java21-tdd-starter)
+[![Mutation Coverage](https://img.shields.io/badge/mutation%20coverage-100%25-brightgreen)](https://github.com/NiallArthurs/java21-tdd-starter)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A production-ready Java 21 LTS project template designed for **Test-Driven Development (TDD)** with AI-assisted coding. Features 9 automated quality gates, mutation testing, and comprehensive documentation for human-AI collaboration.
@@ -19,7 +19,7 @@ A production-ready Java 21 LTS project template designed for **Test-Driven Devel
 
 ```powershell
 # 1. Clone this template
-git clone https://github.com/{your-repo}/java-tdd-template.git my-project
+git clone https://github.com/NiallArthurs/java21-tdd-starter.git my-project
 cd my-project
 
 # 2. Customize for your project (optional but recommended)
