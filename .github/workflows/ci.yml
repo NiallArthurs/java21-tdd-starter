@@ -48,7 +48,7 @@ jobs:
         
     - name: Upload Pitest report
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: pitest-report
         path: build/reports/pitest/
@@ -66,14 +66,14 @@ jobs:
 
     - name: Upload build reports
       if: failure()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: build-reports
         path: build/reports/
         
     - name: Upload test reports
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: test-reports
         path: build/test-results/
