@@ -10,6 +10,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * - AssertJ assertions
  * - Test naming conventions
  * - Test organization
+ * - Branch protection testing
  */
 @DisplayName("Calculator")
 class CalculatorTest {
