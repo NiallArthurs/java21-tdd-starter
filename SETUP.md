@@ -110,6 +110,120 @@ You should see:
 - ✅ No Checkstyle violations
 - ✅ No SpotBugs issues
 
+## Optional: Enable Codecov (Coverage Reporting)
+
+The template includes a Codecov badge in the README, but you need to enable it for your repository.
+
+### For Public Repositories (Free)
+
+1. **Sign in to Codecov:**
+   - Go to https://codecov.io/
+   - Click "Sign in with GitHub"
+   - Authorize Codecov to access your repositories
+
+2. **Add Your Repository:**
+   - Click "+ Add repository" or go to https://app.codecov.io/gh/{your-username}
+   - Select your repository from the list
+   - That's it! No token needed for public repos.
+
+3. **Push to GitHub:**
+   - The CI workflow is already configured to upload coverage
+   - Push any commit and watch the CI run
+   - Check your coverage at: `https://codecov.io/gh/{your-username}/{your-repo}`
+
+4. **Badge Updates:**
+   - Your README badge will start working automatically
+   - Badge URL: `https://codecov.io/gh/{your-username}/{your-repo}/branch/master/graph/badge.svg`
+
+### For Private Repositories
+
+1. **Follow steps 1-2 above** (sign in and add repository)
+
+2. **Get Your Codecov Token:**
+   - Go to your repository settings in Codecov
+   - Copy the "Upload Token"
+
+3. **Add Token to GitHub Secrets:**
+   - Go to your GitHub repository → Settings → Secrets and variables → Actions
+   - Click "New repository secret"
+   - Name: `CODECOV_TOKEN`
+   - Value: (paste your token)
+   - Click "Add secret"
+
+4. **Update CI Workflow:**
+   
+   Edit `.github/workflows/ci.yml` and add the token:
+   
+   ```yaml
+   - name: Upload coverage to Codecov
+     uses: codecov/codecov-action@v5
+     with:
+       files: build/reports/jacoco/test/jacocoTestReport.xml
+       token: ${{ secrets.CODECOV_TOKEN }}  # ⬅️ Add this line
+       flags: unittests
+       name: codecov-umbrella
+       fail_ci_if_error: false
+   ```
+
+### Verify Coverage Upload
+
+After the CI runs:
+1. Check the GitHub Actions log for "Upload coverage to Codecov" step
+2. You should see: "Coverage reports upload successfully"
+3. Visit your Codecov dashboard: `https://app.codecov.io/gh/{your-username}/{your-repo}`
+4. View coverage trends, file-by-file coverage, and pull request comments
+
+### Coverage Badge
+
+The README includes a Codecov badge that shows your current coverage percentage:
+
+```markdown
+[![Codecov](https://codecov.io/gh/{your-username}/{your-repo}/branch/master/graph/badge.svg)](https://codecov.io/gh/{your-username}/{your-repo})
+```
+
+If you used `customize-template.ps1`, this is already updated with your GitHub username.
+
+### What Gets Uploaded?
+
+The CI workflow uploads the JaCoCo XML report:
+- **File**: `build/reports/jacoco/test/jacocoTestReport.xml`
+- **Format**: JaCoCo XML (Codecov native format)
+- **Coverage**: Line, branch, and method coverage
+- **When**: On every push to main/master and pull requests
+
+### Codecov Features
+
+- **Pull Request Comments**: Codecov will comment on PRs with coverage changes
+- **Coverage Trends**: Track coverage over time
+- **File Browser**: See which files need more tests
+- **Diff Coverage**: See coverage for code changed in PRs
+- **Status Checks**: Fail PRs if coverage drops (configurable)
+
+### Codecov Configuration (Optional)
+
+Create `codecov.yml` in your project root to customize:
+
+```yaml
+coverage:
+  precision: 2
+  round: down
+  range: "70...100"
+  status:
+    project:
+      default:
+        target: 80%
+        threshold: 1%
+    patch:
+      default:
+        target: 80%
+
+comment:
+  layout: "reach, diff, files"
+  behavior: default
+```
+
+This enforces 80% minimum coverage (matching your JaCoCo threshold).
+
 ## Troubleshooting
 
 ### "non-project file, only syntax errors are reported"

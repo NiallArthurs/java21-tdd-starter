@@ -14,6 +14,16 @@ This template includes GitHub Actions CI configuration by default. If you're usi
 | **Azure DevOps** | `azure-pipelines.yml` | 📖 Guide below |
 | **Jenkins** | `Jenkinsfile` | 📖 Guide below |
 
+### Coverage Reporting
+
+All platforms support coverage reporting via JaCoCo XML reports:
+
+- **Codecov**: https://codecov.io/ (free for public repos, supports all CI platforms)
+- **Coveralls**: https://coveralls.io/ (alternative to Codecov)
+- **SonarCloud**: https://sonarcloud.io/ (includes coverage + code quality)
+
+**Note:** GitHub Actions includes Codecov integration by default. See [`SETUP.md`](../SETUP.md#optional-enable-codecov-coverage-reporting) for setup instructions.
+
 ---
 
 ## GitLab CI
@@ -92,6 +102,7 @@ coverage:
   stage: test
   script:
     - ./gradlew jacocoTestReport --no-daemon
+    - bash <(curl -s https://codecov.io/bash) -f build/reports/jacoco/test/jacocoTestReport.xml
   artifacts:
     paths:
       - build/reports/jacoco/
@@ -223,11 +234,19 @@ definitions:
 **Test Reporting:**
 Bitbucket automatically detects JUnit XML in `build/test-results/`
 
-**Code Coverage:**
-Add Codecov or similar to `script`:
+**Code Coverage with Codecov:**
+Add to your coverage step:
 ```yaml
-- bash <(curl -s https://codecov.io/bash)
+- step:
+    name: Coverage and Mutation Testing
+    script:
+      - ./gradlew jacocoTestReport --no-daemon
+      - ./gradlew pitest --no-daemon
+      - bash <(curl -s https://codecov.io/bash) -f build/reports/jacoco/test/jacocoTestReport.xml
 ```
+
+**Environment Variables:**
+Add `CODECOV_TOKEN` in Repository Settings → Repository variables (for private repos)
 
 ---
 
@@ -283,6 +302,11 @@ steps:
 
 - script: ./gradlew jacocoTestReport --no-daemon
   displayName: 'Generate coverage report'
+
+- script: |
+    curl -s https://codecov.io/bash | bash -s -- -f $(System.DefaultWorkingDirectory)/build/reports/jacoco/test/jacocoTestReport.xml
+  displayName: 'Upload coverage to Codecov'
+  condition: succeededOrFailed()
 
 - script: ./gradlew pitest --no-daemon
   displayName: 'Run mutation tests'
