@@ -3,7 +3,7 @@
 
 [![Build Status](https://github.com/NiallArthurs/java21-tdd-starter/actions/workflows/ci.yml/badge.svg)](https://github.com/NiallArthurs/java21-tdd-starter/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/NiallArthurs/java21-tdd-starter/branch/master/graph/badge.svg)](https://codecov.io/gh/NiallArthurs/java21-tdd-starter)
-[![Mutation Coverage](https://img.shields.io/badge/mutation%20coverage-100%25-brightgreen)](https://github.com/NiallArthurs/java21-tdd-starter)
+[![Mutation Coverage](https://img.shields.io/badge/mutation%20coverage-95%25-brightgreen)](https://github.com/NiallArthurs/java21-tdd-starter)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A production-ready Java 21 LTS project template designed for **Test-Driven Development (TDD)** with AI-assisted coding. Features 9 automated quality gates, mutation testing, and comprehensive documentation for human-AI collaboration.
