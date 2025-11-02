@@ -28,6 +28,14 @@ jobs:
         
     - name: Build with Gradle
       run: ./gradlew build --no-daemon --console=plain
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        files: build/reports/jacoco/test/jacocoTestReport.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
         
     - name: Upload Pitest report
       if: always()
