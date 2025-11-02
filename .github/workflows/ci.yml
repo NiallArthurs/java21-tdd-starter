@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   build:
@@ -48,6 +49,7 @@ jobs:
         MUTATION_PERCENT=$(grep -oP '\d+(?=% <div class="coverage_bar">)' build/reports/pitest/index.html | sed -n '2p' || echo "0")
         
         echo "Extracted mutation coverage: ${MUTATION_PERCENT}%"
+        echo "MUTATION_PERCENT=${MUTATION_PERCENT}" >> $GITHUB_ENV
         
         # Determine badge color
         if [ "$MUTATION_PERCENT" -ge 80 ]; then
@@ -58,20 +60,36 @@ jobs:
           COLOR="red"
         fi
         
+        echo "BADGE_COLOR=${COLOR}" >> $GITHUB_ENV
+        
         # Update README.md badge
         sed -i "s/mutation%20coverage-[0-9]*%25-[a-zA-Z]*/mutation%20coverage-${MUTATION_PERCENT}%25-${COLOR}/" README.md
-        
-        # Check if README.md changed
-        if ! git diff --quiet README.md; then
-          echo "Badge updated to ${MUTATION_PERCENT}%"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add README.md
-          git commit -m "chore: update mutation coverage badge to ${MUTATION_PERCENT}% [skip ci]"
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:master
-        else
-          echo "Badge already up to date at ${MUTATION_PERCENT}%"
-        fi
+    
+    - name: Create Pull Request for Badge Update
+      if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+      uses: peter-evans/create-pull-request@v7
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: 'chore: update mutation coverage badge to ${{ env.MUTATION_PERCENT }}%'
+        branch: update-mutation-badge
+        delete-branch: true
+        title: 'chore: update mutation coverage badge to ${{ env.MUTATION_PERCENT }}%'
+        body: |
+          ## Mutation Coverage Badge Update
+          
+          This is an automated PR to update the mutation coverage badge in README.md.
+          
+          **Current Mutation Coverage:** ${{ env.MUTATION_PERCENT }}%
+          **Badge Color:** ${{ env.BADGE_COLOR }}
+          
+          ### Changes
+          - Updated mutation coverage badge from Pitest report
+          
+          This PR can be safely merged or auto-merged.
+        labels: |
+          automated
+          documentation
+        assignees: ${{ github.repository_owner }}
         
     - name: Upload Pitest report
       if: always()
