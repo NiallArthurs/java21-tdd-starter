@@ -190,14 +190,17 @@ $content = Get-Content $readme -Raw
 $content = $content.Replace("com/example/app", $newPackagePath)
 $content = $content.Replace("com.example.app", $PackageName)
 
-# Update GitHub badges if username provided
+# Update GitHub badges and repository references
 if ($GitHubUsername) {
+    # Replace hardcoded template repository with user's repository
+    $content = $content.Replace("NiallArthurs/java21-tdd-starter", "$GitHubUsername/$ProjectName")
+    # Also handle any remaining placeholders
     $content = $content.Replace("{username}/{repo}", "$GitHubUsername/$ProjectName")
     $content = $content.Replace("{your-repo}", "$GitHubUsername")
     $content = $content.Replace("{username}", $GitHubUsername)
     Write-Host "  > Updated GitHub badges" -ForegroundColor Gray
 } else {
-    Write-Host "  > GitHub username not provided - badges still have placeholders" -ForegroundColor Yellow
+    Write-Host "  > GitHub username not provided - badges will still point to template repo" -ForegroundColor Yellow
 }
 
 Set-Content $readme $content -NoNewline
