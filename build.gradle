@@ -1,0 +1,501 @@
+plugins {
+    id 'java'
+    id 'eclipse'
+    id 'checkstyle'
+    id 'jacoco'
+    id 'pmd'
+    alias(libs.plugins.spotbugs)
+    alias(libs.plugins.owasp.dependencycheck)
+    alias(libs.plugins.pitest)
+    alias(libs.plugins.errorprone)
+}
+
+// Build Configuration - Quality Thresholds
+ext {
+    jacocoMinimumCoverage = 0.8
+    pitestMutationThreshold = 80
+    pitestCoverageThreshold = 80
+    owaspCvssThreshold = 7
+    pmdMaxViolations = 0
+}
+
+eclipse {
+    classpath {
+        downloadJavadoc = false
+        downloadSources = true
+    }
+}
+
+checkstyle {
+    toolVersion = libs.versions.checkstyle.get()
+    configFile = file('config/checkstyle/checkstyle.xml')
+    configProperties = [
+        'charset': 'UTF-8'
+    ]
+}
+
+// PMD configuration
+pmd {
+    toolVersion = '7.7.0'
+    consoleOutput = true
+    ruleSetFiles = files('config/pmd/ruleset.xml')
+    ruleSets = [] // Use only custom ruleset
+    ignoreFailures = false
+    maxFailures = pmdMaxViolations
+}
+
+tasks.withType(Pmd) {
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+// Optimize task execution order for fast failures:
+// 1. Error Prone (during compilation) - fastest, catches bugs at compile-time
+// 2. Checkstyle - fast, style checks
+// 3. PMD - fast, static analysis
+// 4. SpotBugs - medium speed, bytecode analysis
+// 5. Tests + JaCoCo - medium speed
+// 6. Pitest - slowest, mutation testing (comprehensive but expensive)
+
+// Make checkstyle depend on compilation (so Error Prone runs first)
+tasks.named('checkstyleMain').configure {
+    mustRunAfter 'compileJava'
+}
+
+tasks.named('checkstyleTest').configure {
+    mustRunAfter 'compileTestJava'
+}
+
+// Make PMD run after checkstyle
+tasks.named('pmdMain').configure {
+    mustRunAfter 'checkstyleMain'
+}
+
+tasks.named('pmdTest').configure {
+    mustRunAfter 'checkstyleTest'
+}
+
+// Make SpotBugs run after PMD
+tasks.named('spotbugsMain').configure {
+    mustRunAfter 'pmdMain'
+}
+
+tasks.named('spotbugsTest').configure {
+    mustRunAfter 'pmdTest'
+}
+
+// Make tests run after all static analysis (fail fast on static issues)
+tasks.named('test').configure {
+    mustRunAfter 'spotbugsMain', 'spotbugsTest'
+}
+
+// Pitest should run last (it's the slowest)
+tasks.named('pitest').configure {
+    mustRunAfter 'test', 'jacocoTestCoverageVerification'
+}
+
+tasks.named('check').configure {
+    dependsOn 'checkstyleMain', 'checkstyleTest'
+    dependsOn 'pmdMain', 'pmdTest'
+}
+
+group = 'com.example'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+// Create a separate source set for architecture tests
+// This keeps infrastructure/quality tests separate from business logic tests
+sourceSets {
+    architectureTest {
+        java {
+            srcDir 'src/architecture-test/java'
+        }
+        resources {
+            srcDir 'src/architecture-test/resources'
+        }
+        compileClasspath += sourceSets.main.output + sourceSets.test.output
+        runtimeClasspath += sourceSets.main.output + sourceSets.test.output
+    }
+}
+
+// Create architecture test configuration
+configurations {
+    architectureTestImplementation.extendsFrom testImplementation
+    architectureTestRuntimeOnly.extendsFrom testRuntimeOnly
+}
+
+dependencies {
+    // Testing - using bundle for convenience
+    testImplementation libs.bundles.testing
+    testRuntimeOnly libs.junit.platform.launcher
+    
+    // Logging
+    implementation libs.slf4j.api
+    runtimeOnly libs.logback.classic
+    
+    // SpotBugs annotations for @SuppressFBWarnings
+    compileOnly libs.spotbugs.annotations
+    
+    // Lombok for reducing boilerplate
+    compileOnly libs.lombok
+    annotationProcessor libs.lombok
+    testCompileOnly libs.lombok
+    testAnnotationProcessor libs.lombok
+    
+    // Error Prone - compile-time static analysis
+    errorprone "com.google.errorprone:error_prone_core:${libs.versions.errorprone.core.get()}"
+}
+
+java {
+    // Use Java toolchain to target Java 21 LTS. This lets Gradle use an installed JDK 21
+    // or auto-download a suitable JDK for compilation.
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(libs.versions.java.get() as Integer)
+    }
+}
+
+// If a Java 21 toolchain is not available, compile with the current JVM but
+// instruct javac to produce class files and API compatibility for Java 21.
+// This lets you build using your installed JDK 21 while targeting Java 21.
+tasks.withType(JavaCompile).configureEach {
+    // Use --release to ensure proper cross-compilation to Java 21
+    options.release.set(libs.versions.java.get() as Integer)
+    
+    // Error Prone configuration
+    options.errorprone.enabled = true
+    options.errorprone {
+        // Treat warnings as errors to enforce quality
+        allErrorsAsWarnings = false
+        
+        // Disable checks that conflict with other tools or are too noisy
+        disable(
+            'UnusedVariable',           // Covered by PMD
+            'UnusedMethod',             // Covered by PMD
+            'MissingSummary',           // Javadoc style - personal preference
+            'InlineFormatString'        // Sometimes format strings are clearer inline
+        )
+        
+        // Enable additional checks beyond defaults
+        error(
+            'EqualsHashCode',           // Missing hashCode() when equals() is overridden
+            'StreamResourceLeak',       // Streams not closed properly
+            'ThreadPriorityCheck',      // Inappropriate thread priority usage
+            'JavaTimeDefaultTimeZone',  // Use of default timezone
+            'UnnecessaryParentheses'    // Code clarity
+        )
+    }
+}
+
+test {
+    useJUnitPlatform()
+    finalizedBy jacocoTestReport
+}
+
+// Architecture test task (separate from business logic tests)
+task architectureTest(type: Test) {
+    description = 'Runs architecture tests (ArchUnit) to validate structural rules'
+    group = 'verification'
+    testClassesDirs = sourceSets.architectureTest.output.classesDirs
+    classpath = sourceSets.architectureTest.runtimeClasspath
+    useJUnitPlatform()
+    
+    // Architecture tests should run after compilation but don't need coverage
+    mustRunAfter test
+    
+    shouldRunAfter 'spotbugsMain', 'spotbugsTest'
+}
+
+jacocoTestReport {
+    reports {
+        xml.required = true
+        html.required = true
+    }
+    dependsOn test
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                minimum = jacocoMinimumCoverage
+            }
+        }
+    }
+    dependsOn jacocoTestReport
+    doLast {
+        def reportFile = file("${buildDir}/reports/jacoco/test/jacocoTestReport.xml")
+        if (reportFile.exists()) {
+            def parser = new XmlSlurper()
+            parser.setFeature("http://apache.org/xml/features/disallow-doctype-decl", false)
+            parser.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
+            def report = parser.parse(reportFile)
+            
+            def instructionCounter = report.counter.find { it.@type == 'INSTRUCTION' }
+            def branchCounter = report.counter.find { it.@type == 'BRANCH' }
+            def lineCounter = report.counter.find { it.@type == 'LINE' }
+            def methodCounter = report.counter.find { it.@type == 'METHOD' }
+            def classCounter = report.counter.find { it.@type == 'CLASS' }
+            
+            def calcCoverage = { counter ->
+                def missed = counter.@missed.toInteger()
+                def covered = counter.@covered.toInteger()
+                def total = missed + covered
+                total > 0 ? String.format("%.1f%%", (covered * 100.0 / total)) : "N/A"
+            }
+            
+            logger.lifecycle("")
+            logger.lifecycle("============================================================")
+            logger.lifecycle("          JaCoCo Code Coverage Summary                      ")
+            logger.lifecycle("============================================================")
+            logger.lifecycle("  Instructions: ${calcCoverage(instructionCounter).padRight(7)} " +
+                           "(${instructionCounter.@covered}/${instructionCounter.@missed.toInteger() + instructionCounter.@covered.toInteger()})")
+            logger.lifecycle("  Branches:     ${calcCoverage(branchCounter).padRight(7)} " +
+                           "(${branchCounter.@covered}/${branchCounter.@missed.toInteger() + branchCounter.@covered.toInteger()})")
+            logger.lifecycle("  Lines:        ${calcCoverage(lineCounter).padRight(7)} " +
+                           "(${lineCounter.@covered}/${lineCounter.@missed.toInteger() + lineCounter.@covered.toInteger()})")
+            logger.lifecycle("  Methods:      ${calcCoverage(methodCounter).padRight(7)} " +
+                           "(${methodCounter.@covered}/${methodCounter.@missed.toInteger() + methodCounter.@covered.toInteger()})")
+            logger.lifecycle("  Classes:      ${calcCoverage(classCounter).padRight(7)} " +
+                           "(${classCounter.@covered}/${classCounter.@missed.toInteger() + classCounter.@covered.toInteger()})")
+            logger.lifecycle("============================================================")
+            
+            def instructionCoverage = instructionCounter.@covered.toInteger() * 100.0 / 
+                                     (instructionCounter.@missed.toInteger() + instructionCounter.@covered.toInteger())
+            def threshold = jacocoMinimumCoverage * 100
+            
+            if (instructionCoverage >= threshold) {
+                logger.lifecycle("  [PASS] Coverage threshold met: ${String.format("%.1f%%", instructionCoverage)} >= ${String.format("%.0f%%", threshold)}")
+            } else {
+                logger.lifecycle("  [FAIL] Coverage below threshold: ${String.format("%.1f%%", instructionCoverage)} < ${String.format("%.0f%%", threshold)}")
+            }
+            logger.lifecycle("============================================================")
+            logger.lifecycle("")
+        }
+    }
+}
+
+// SpotBugs configuration
+spotbugs {
+    effort = com.github.spotbugs.snom.Effort.valueOf('MAX')
+    reportLevel = com.github.spotbugs.snom.Confidence.valueOf('MEDIUM')
+    excludeFilter = file('config/spotbugs/spotbugs-exclude.xml')
+}
+
+tasks.withType(com.github.spotbugs.snom.SpotBugsTask) {
+    reports {
+        html {
+            required = true
+            outputLocation = file("$buildDir/reports/spotbugs/${name}.html")
+            stylesheet = 'fancy-hist.xsl'
+        }
+        xml {
+            required = true
+            outputLocation = file("$buildDir/reports/spotbugs/${name}.xml")
+        }
+    }
+    
+    // Show bugs in console for immediate feedback
+    doLast {
+        def reportFile = reports.xml.outputLocation.asFile.get()
+        if (reportFile.exists()) {
+            def bugs = new XmlSlurper().parse(reportFile)
+            def bugCount = bugs.BugInstance.size()
+            
+            if (bugCount > 0) {
+                logger.lifecycle("")
+                logger.lifecycle("============================================================")
+                logger.lifecycle("  SpotBugs found ${bugCount} bug(s)")
+                logger.lifecycle("============================================================")
+                
+                bugs.BugInstance.each { bug ->
+                    def file = bug.SourceLine.@sourcepath.text()
+                    def line = bug.SourceLine.@start.text()
+                    def type = bug.@type.text()
+                    def priority = bug.@priority.text()
+                    def message = bug.LongMessage.text()
+                    
+                    logger.lifecycle("  ${file}:${line}")
+                    logger.lifecycle("    [${type}] Priority ${priority}: ${message}")
+                    logger.lifecycle("")
+                }
+                
+                logger.lifecycle("  See detailed report: ${reports.html.outputLocation.get()}")
+                logger.lifecycle("============================================================")
+            }
+        }
+    }
+}
+
+// PIT Mutation Testing configuration
+pitest {
+    targetClasses = ['com.example.app.*']
+    targetTests = ['com.example.app.*']
+    threads = 4
+    outputFormats = ['HTML', 'XML']
+    timestampedReports = false
+    mutationThreshold = pitestMutationThreshold
+    coverageThreshold = pitestCoverageThreshold
+    // Use JUnit 5
+    junit5PluginVersion = libs.versions.pitest.junit5.get()
+    // Exclude package-info files
+    excludedClasses = ['*.package-info']
+    // Exclude Lombok-generated methods from mutation testing
+    excludedMethods = [
+        'equals',
+        'hashCode',
+        'toString',
+        'canEqual',
+        'get*',      // Lombok-generated getters
+        'set*',      // Lombok-generated setters
+        'builder',   // Builder factory method
+        'build',     // Builder build method
+        'toBuilder'  // toBuilder method
+    ]
+}
+
+// Make check task depend on all quality gates in optimal order
+// Note: OWASP Dependency Check is excluded from local builds (slow without NVD API key)
+// but runs in CI/CD pipelines. Run manually with: ./gradlew dependencyCheckAnalyze
+//
+// Execution order (fast to slow):
+// 1. Error Prone (automatic during compile)
+// 2. Checkstyle (fast - style checks)
+// 3. PMD (fast - static analysis)
+// 4. License Check (fast - dependency validation)
+// 5. SpotBugs (medium - bytecode analysis)
+// 6. Architecture Tests (fast - structural validation)
+// 7. Unit Tests + JaCoCo (medium - test execution)
+// 8. Pitest (slow - mutation testing)
+tasks.named('check').configure {
+    // Fast checks first (fail fast)
+    dependsOn 'checkstyleMain', 'checkstyleTest'
+    dependsOn 'pmdMain', 'pmdTest'
+    dependsOn 'checkLicenses'
+    
+    // Medium speed checks
+    dependsOn 'spotbugsMain', 'spotbugsTest'
+    dependsOn 'architectureTest'  // Architecture validation (separate from business logic)
+    dependsOn 'jacocoTestCoverageVerification'
+    
+    // Slowest check last
+    dependsOn 'pitest'
+}
+
+// OWASP Dependency-Check configuration
+dependencyCheck {
+    format = 'HTML'
+    suppressionFile = 'config/owasp/suppressions.xml'
+    failBuildOnCVSS = owaspCvssThreshold
+    analyzers {
+        assemblyEnabled = false
+    }
+}
+
+// Task to generate sources JAR
+task sourcesJar(type: Jar) {
+    archiveClassifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+artifacts {
+    archives sourcesJar
+}
+
+// License validation task - fails build if GPL/AGPL dependencies are found
+task checkLicenses {
+    description = 'Validates that no GPL or AGPL licensed dependencies are included'
+    group = 'verification'
+    
+    doLast {
+        def restrictedLicenses = [
+            'GPL', 'GNU General Public License',
+            'AGPL', 'GNU Affero General Public License',
+            'GPLv2', 'GPLv3', 'AGPLv3',
+            'GNU GPL', 'GNU AGPL'
+        ]
+        
+        def problematicDeps = []
+        
+        // Check runtime classpath (what gets bundled with your app)
+        configurations.runtimeClasspath.resolvedConfiguration.resolvedArtifacts.each { artifact ->
+            def pom = artifact.file.toString().replace('.jar', '.pom')
+            def pomFile = new File(pom)
+            
+            // Try to find POM in Maven cache
+            if (!pomFile.exists()) {
+                def module = artifact.moduleVersion.id
+                def group = module.group.replace('.', '/')
+                def name = module.name
+                def version = module.version
+                
+                // Check local Maven repo
+                def userHome = System.getProperty('user.home')
+                pomFile = new File("${userHome}/.m2/repository/${group}/${name}/${version}/${name}-${version}.pom")
+                
+                // Check Gradle cache
+                if (!pomFile.exists()) {
+                    def gradleCache = new File("${userHome}/.gradle/caches/modules-2/files-2.1/${module.group}/${name}/${version}")
+                    if (gradleCache.exists()) {
+                        gradleCache.eachFileRecurse { file ->
+                            if (file.name.endsWith('.pom')) {
+                                pomFile = file
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (pomFile.exists()) {
+                def pomContent = pomFile.text
+                restrictedLicenses.each { license ->
+                    if (pomContent.toLowerCase().contains(license.toLowerCase())) {
+                        // Exclude false positives (LGPL is not GPL)
+                        if (!pomContent.toLowerCase().contains('lgpl') && 
+                            !pomContent.toLowerCase().contains('lesser')) {
+                            problematicDeps.add([
+                                dependency: "${artifact.moduleVersion.id.group}:${artifact.moduleVersion.id.name}:${artifact.moduleVersion.id.version}",
+                                license: license,
+                                file: artifact.file.name
+                            ])
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (!problematicDeps.isEmpty()) {
+            def message = new StringBuilder()
+            message.append("\n[FAIL] BUILD FAILED: Restricted licenses detected!\n")
+            message.append("===========================================================\n\n")
+            message.append("The following dependencies have GPL/AGPL licenses:\n\n")
+            
+            problematicDeps.each { dep ->
+                message.append("  • ${dep.dependency}\n")
+                message.append("    License: ${dep.license}\n")
+                message.append("    File: ${dep.file}\n\n")
+            }
+            
+            message.append("[WARNING] GPL/AGPL licenses require derivative works to be open source.\n")
+            message.append("          This is incompatible with most commercial/proprietary use.\n\n")
+            message.append("Solutions:\n")
+            message.append("  1. Find an alternative library with Apache/MIT/BSD license\n")
+            message.append("  2. If the library is dual-licensed, add the non-GPL version\n")
+            message.append("  3. If this is a false positive, update the license check logic\n")
+            message.append("  4. If you truly need GPL and your project is GPL-compatible,\n")
+            message.append("     disable this check by removing 'checkLicenses' from build.gradle\n\n")
+            message.append("See DEPENDENCIES.md for more information.\n")
+            
+            throw new GradleException(message.toString())
+        } else {
+            logger.lifecycle("[PASS] License check passed: No GPL/AGPL dependencies detected")
+        }
+    }
+}
+
+// checkLicenses is now included in the main check task configuration above
+// (removed duplicate dependsOn to avoid confusion)

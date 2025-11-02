@@ -1,0 +1,66 @@
+Third-Party Notices
+====================
+
+This project uses the following third-party libraries and tools:
+
+## Runtime Dependencies
+
+None currently - this is a template project.
+
+## Test Dependencies
+
+### JUnit Jupiter
+- License: Eclipse Public License v2.0
+- Copyright: JUnit Team
+- URL: https://junit.org/junit5/
+
+### AssertJ
+- License: Apache License 2.0
+- Copyright: AssertJ Authors
+- URL: https://assertj.github.io/doc/
+
+### Mockito
+- License: MIT License
+- Copyright: Mockito Contributors
+- URL: https://site.mockito.org/
+
+### Lombok
+- License: MIT License
+- Copyright: Project Lombok Authors
+- URL: https://projectlombok.org/
+
+## Build Tools
+
+### Gradle
+- License: Apache License 2.0
+- Copyright: Gradle Inc.
+- URL: https://gradle.org/
+
+### Checkstyle
+- License: LGPL 2.1
+- Copyright: Checkstyle Development Team
+- URL: https://checkstyle.org/
+
+### SpotBugs
+- License: LGPL 2.1
+- Copyright: SpotBugs Team
+- URL: https://spotbugs.github.io/
+
+### JaCoCo
+- License: Eclipse Public License v2.0
+- Copyright: Mountainminds GmbH & Co. KG and Contributors
+- URL: https://www.jacoco.org/
+
+### PIT Mutation Testing (Pitest)
+- License: Apache License 2.0
+- Copyright: Henry Coles and contributors
+- URL: https://pitest.org/
+
+### OWASP Dependency-Check
+- License: Apache License 2.0
+- Copyright: OWASP Foundation
+- URL: https://jeremylong.github.io/DependencyCheck/
+
+---
+
+For complete license texts, see the respective project websites linked above.

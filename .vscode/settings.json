@@ -1,0 +1,26 @@
+{
+    // Automatically update build configuration when build.gradle changes
+    "java.configuration.updateBuildConfiguration": "automatic",
+    
+    // IMPORTANT: Disable Gradle Build Server due to ConcurrentModificationException bug
+    // VS Code will use Eclipse .project/.classpath files instead (generated via gradle eclipse)
+    "java.import.gradle.enabled": false,
+    
+    // Use Gradle wrapper for imports  
+    "java.import.gradle.wrapper.enabled": true,
+    
+    // Configure JDK 21 - UPDATE THIS PATH to match your JDK installation
+    "java.configuration.runtimes": [
+        {
+            "name": "JavaSE-21",
+            "path": "C:\\Program Files\\Java\\jdk-21",
+            "default": true
+        }
+    ],
+    
+    // Enable Lombok support in Java Language Server
+    "java.jdt.ls.lombokSupport.enabled": true,
+    
+    // Enable null analysis
+    "java.compile.nullAnalysis.mode": "automatic"
+}
