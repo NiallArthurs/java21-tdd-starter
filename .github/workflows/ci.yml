@@ -67,6 +67,7 @@ jobs:
     
     - name: Create Pull Request for Badge Update
       if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+      id: create-pr
       uses: peter-evans/create-pull-request@v7
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
@@ -85,11 +86,18 @@ jobs:
           ### Changes
           - Updated mutation coverage badge from Pitest report
           
-          This PR can be safely merged or auto-merged.
+          This PR can be safely auto-merged.
         labels: |
           automated
           documentation
         assignees: ${{ github.repository_owner }}
+    
+    - name: Enable Auto-Merge for Badge PR
+      if: github.ref == 'refs/heads/master' && github.event_name == 'push' && steps.create-pr.outputs.pull-request-number
+      run: |
+        gh pr merge ${{ steps.create-pr.outputs.pull-request-number }} --auto --squash
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         
     - name: Upload Pitest report
       if: always()
