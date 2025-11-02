@@ -1,0 +1,30 @@
+# CODEOWNERS
+# 
+# This file defines code ownership for this repository.
+# Code owners are automatically requested for review when someone opens a pull request
+# that modifies code that they own.
+#
+# More info: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything in the repo
+* @NiallArthurs
+
+# CI/CD Configuration
+/.github/ @NiallArthurs
+
+# Build Configuration
+/build.gradle @NiallArthurs
+/settings.gradle @NiallArthurs
+/gradle.properties @NiallArthurs
+/gradle/ @NiallArthurs
+
+# Documentation
+/docs/ @NiallArthurs
+/README.md @NiallArthurs
+/SETUP.md @NiallArthurs
+
+# Source Code
+/src/ @NiallArthurs
+
+# Quality Gate Configurations
+/config/ @NiallArthurs
