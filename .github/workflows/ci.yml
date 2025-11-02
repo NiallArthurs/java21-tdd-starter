@@ -7,7 +7,7 @@ on:
     branches: [ "main", "master" ]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -36,6 +36,39 @@ jobs:
         flags: unittests
         name: codecov-umbrella
         fail_ci_if_error: false
+    
+    - name: Update Mutation Coverage Badge
+      if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+      run: |
+        # Extract mutation percentage from Pitest HTML report
+        # Look for the second occurrence of percentage (first is Line Coverage, second is Mutation Coverage)
+        MUTATION_PERCENT=$(grep -oP '\d+(?=% <div class="coverage_bar">)' build/reports/pitest/index.html | sed -n '2p' || echo "0")
+        
+        echo "Extracted mutation coverage: ${MUTATION_PERCENT}%"
+        
+        # Determine badge color
+        if [ "$MUTATION_PERCENT" -ge 80 ]; then
+          COLOR="brightgreen"
+        elif [ "$MUTATION_PERCENT" -ge 60 ]; then
+          COLOR="yellow"
+        else
+          COLOR="red"
+        fi
+        
+        # Update README.md badge
+        sed -i "s/mutation%20coverage-[0-9]*%25-[a-zA-Z]*/mutation%20coverage-${MUTATION_PERCENT}%25-${COLOR}/" README.md
+        
+        # Check if README.md changed
+        if ! git diff --quiet README.md; then
+          echo "Badge updated to ${MUTATION_PERCENT}%"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "chore: update mutation coverage badge to ${MUTATION_PERCENT}% [skip ci]"
+          git push
+        else
+          echo "Badge already up to date at ${MUTATION_PERCENT}%"
+        fi
         
     - name: Upload Pitest report
       if: always()
