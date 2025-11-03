@@ -6,7 +6,7 @@
 java = "21"
 
 # Plugins
-spotbugs-plugin = "6.0.26"
+spotbugs-plugin = "6.4.4"
 owasp-plugin = "12.1.8"
 pitest-plugin = "1.15.0"
 errorprone-plugin = "4.3.0"
